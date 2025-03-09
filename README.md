@@ -1,36 +1,115 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Referly - Referral Management Platform
+
+Referly is a comprehensive referral management platform designed to help businesses manage and track referrals, run campaigns, and leverage AI to optimize their referral programs.
+
+## Features
+
+### Business Side Features
+- Registration/Login
+- AI Agent: Assistant for actions/tasks/follow-ups
+- Analytics/Data: View relevant data/analytics
+- Mini CRM: Manage customers and their details
+- Send Links: Generate referral links
+- Text/Email Customer communication
+- Bulk Import Customers
+- Referral Tracking/Analytics
+- Campaign Set Up/Management
+- Follow Up Set Up/Management
+- Automated Reward Verification
+
+### Referrer Side Features
+- No Account Required
+- Personalized Referral Link
+- AI Chat interface
+- AI-Powered Sharing Suggestions
+- One-Click Sharing: SMS, Email, and Facebook Post
+- Basic Referral Tracking
+- Instant Reward Notifications
+- Claimable Discount Codes & Rewards
+
+## Tech Stack
+
+- **Frontend**: Next.js, React, Tailwind CSS
+- **Backend**: Next.js API Routes
+- **Database**: MongoDB
+- **Authentication**: NextAuth.js
+- **Form Validation**: Zod, React Hook Form
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Node.js 18.x or higher
+- MongoDB (local or Atlas)
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Installation
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/referly.git
+   cd referly
+   ```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-## Learn More
+3. Set up environment variables:
+   - Copy `.env.local.example` to `.env.local`
+   - Update the variables with your own values
 
-To learn more about Next.js, take a look at the following resources:
+4. Start the development server:
+   ```bash
+   npm run dev
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+5. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Project Structure
 
-## Deploy on Vercel
+- `/app` - Next.js app directory
+  - `/api` - API routes
+  - `/components` - React components
+  - `/lib` - Utility functions
+  - `/models` - MongoDB models
+  - `/pages` - Page components
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## API Endpoints
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Authentication
+- `POST /api/auth/register` - Register a new user
+- `POST /api/auth/[...nextauth]` - NextAuth.js authentication
+
+### Referrals
+- `POST /api/referrals/generate-link` - Generate a referral link
+- `POST /api/referrals/track-click` - Track referral link clicks
+- `POST /api/referrals/submit` - Submit a referral
+
+### Campaigns
+- `GET /api/campaigns` - Get all campaigns
+- `POST /api/campaigns` - Create a new campaign
+- `GET /api/campaigns/[id]` - Get a specific campaign
+- `PATCH /api/campaigns/[id]` - Update a campaign
+- `DELETE /api/campaigns/[id]` - Delete a campaign
+
+### Customers (Mini CRM)
+- `GET /api/customers` - Get all customers
+- `POST /api/customers` - Create a new customer or bulk import
+- `GET /api/customers/[id]` - Get a specific customer
+- `PATCH /api/customers/[id]` - Update a customer
+- `DELETE /api/customers/[id]` - Delete a customer
+
+### Follow-ups
+- `GET /api/follow-ups` - Get all follow-ups
+- `POST /api/follow-ups` - Create a new follow-up
+- `GET /api/follow-ups/[id]` - Get a specific follow-up
+- `PATCH /api/follow-ups/[id]` - Update a follow-up
+- `DELETE /api/follow-ups/[id]` - Delete a follow-up
+
+### Analytics
+- `GET /api/analytics` - Get business analytics
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
