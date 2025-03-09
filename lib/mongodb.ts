@@ -6,6 +6,15 @@ if (!MONGODB_URI) {
   throw new Error('Please define the MONGODB_URI environment variable');
 }
 
+// Define the global mongoose type
+declare global {
+  var mongoose: {
+    conn: typeof mongoose | null;
+    promise: Promise<typeof mongoose> | null;
+  };
+}
+
+// Initialize the cached connection
 let cached = global.mongoose;
 
 if (!cached) {

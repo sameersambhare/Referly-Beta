@@ -42,6 +42,28 @@ Referly is a comprehensive referral management platform designed to help busines
 - Node.js 18.x or higher
 - MongoDB (local or Atlas)
 
+### MongoDB Setup
+
+#### Option 1: Local MongoDB Installation
+
+1. Download and install MongoDB Community Server from [MongoDB Download Center](https://www.mongodb.com/try/download/community)
+2. Follow the installation instructions for your operating system
+3. Start the MongoDB service:
+   ```bash
+   mongod --dbpath /path/to/data/directory
+   ```
+
+#### Option 2: MongoDB Atlas (Cloud)
+
+1. Create a free account on [MongoDB Atlas](https://www.mongodb.com/cloud/atlas/register)
+2. Create a new cluster
+3. Set up database access (create a user with password)
+4. Set up network access (allow access from your IP address)
+5. Get your connection string and update the `.env.local` file:
+   ```
+   MONGODB_URI=mongodb+srv://<username>:<password>@<cluster-url>/<database-name>?retryWrites=true&w=majority
+   ```
+
 ### Installation
 
 1. Clone the repository:
@@ -109,6 +131,65 @@ Referly is a comprehensive referral management platform designed to help busines
 
 ### Analytics
 - `GET /api/analytics` - Get business analytics
+
+## AI Assistant
+
+The dashboard includes an AI assistant powered by DeepSeek AI that can help users manage their referral program. The assistant can:
+
+- Provide insights on campaigns
+- Suggest follow-ups
+- Answer questions about referrals
+- Provide analytics information
+- Suggest improvements to the referral program
+
+### Configuration
+
+To use the AI assistant, you need to set up a DeepSeek API key:
+
+1. Sign up for a free account at [DeepSeek Platform](https://platform.deepseek.com/)
+2. Generate an API key in your account settings
+3. Add the API key to your `.env.local` file:
+
+```
+DEEPSEEK_API_KEY=your-deepseek-api-key
+DEEPSEEK_API_URL=https://api.deepseek.com/v1
+```
+
+The AI assistant uses the `deepseek-chat` model, which is DeepSeek's standard chat model. This provides a good balance of performance and cost for a referral management assistant.
+
+If the DeepSeek API is unavailable or there's an error, the assistant will fall back to a local implementation with predefined responses.
+
+### Features
+
+- **Real-time AI responses**: Get instant answers to your referral program questions
+- **Fallback mechanism**: Continues to work even when the API is unavailable
+- **Suggested prompts**: Helpful suggestions for new users
+- **Context-aware**: The AI understands the context of your referral program
+
+## Troubleshooting
+
+### MongoDB Connection Issues
+
+If you're having trouble connecting to MongoDB:
+
+1. Make sure MongoDB is running
+2. Check your connection string in `.env.local`
+3. Ensure network access is properly configured
+4. Check for any firewall issues
+
+### Tailwind CSS Issues
+
+If you're having issues with Tailwind CSS:
+
+1. Make sure you have the correct versions of dependencies:
+   ```bash
+   npm install -D tailwindcss@3.3.0 postcss@8.4.24 autoprefixer@10.4.14
+   ```
+
+2. Ensure your configuration files are set up correctly:
+   - `tailwind.config.js`
+   - `postcss.config.js`
+   - `app/globals.css`
 
 ## License
 
