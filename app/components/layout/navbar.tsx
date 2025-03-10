@@ -28,14 +28,13 @@ export function Navbar() {
   
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-14 items-center">
-        <div className="mr-4 flex">
-          <Link href="/" className="flex items-center space-x-2">
+      <div className="container flex h-14 items-center justify-between">
+        <div className="flex items-center">
+          <Link href="/" className="flex items-center space-x-2 mr-6">
             <span className="font-bold text-xl">Referly</span>
           </Link>
-        </div>
-        <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
-          <nav className="flex items-center space-x-6">
+          
+          <nav className="hidden md:flex items-center space-x-6">
             {status === "authenticated" && user?.role === "business" && (
               <>
                 <Link href="/dashboard" className={isActive("/dashboard")}>
@@ -72,34 +71,36 @@ export function Navbar() {
               </>
             )}
           </nav>
-          <div className="flex items-center space-x-2">
-            <ThemeToggle />
-            {status === "authenticated" ? (
-              <>
-                <span className="text-sm text-muted-foreground mr-2">
-                  {user?.name}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => signOut({ callbackUrl: "/" })}
-                >
-                  Sign Out
+        </div>
+        
+        <div className="flex items-center space-x-4">
+          <ThemeToggle />
+          
+          {status === "authenticated" ? (
+            <div className="flex items-center space-x-4">
+              <span className="text-sm text-muted-foreground hidden sm:inline">
+                {user?.name}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => signOut({ callbackUrl: "/" })}
+              >
+                Sign Out
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center space-x-2">
+              <Link href="/auth/login">
+                <Button variant="outline" size="sm">
+                  Sign In
                 </Button>
-              </>
-            ) : (
-              <>
-                <Link href="/auth/login">
-                  <Button variant="outline" size="sm">
-                    Sign In
-                  </Button>
-                </Link>
-                <Link href="/auth/register">
-                  <Button size="sm">Sign Up</Button>
-                </Link>
-              </>
-            )}
-          </div>
+              </Link>
+              <Link href="/auth/register">
+                <Button size="sm">Sign Up</Button>
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </header>
