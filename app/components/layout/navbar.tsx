@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { signOut, useSession } from "next-auth/react"
 import { Button } from "../ui/button"
+import { ThemeToggle } from "../ui/theme-toggle"
 
 // Extend the Session type to include role
 interface ExtendedUser {
@@ -72,6 +73,7 @@ export function Navbar() {
             )}
           </nav>
           <div className="flex items-center space-x-2">
+            <ThemeToggle />
             {status === "authenticated" ? (
               <>
                 <span className="text-sm text-muted-foreground mr-2">
