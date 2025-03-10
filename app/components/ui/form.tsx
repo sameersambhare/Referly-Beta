@@ -4,7 +4,7 @@ import * as React from "react"
 import { useFormStatus } from "react-dom"
 import { cn } from "@/lib/utils"
 import { Label } from "./label"
-import { UseFormReturn } from "react-hook-form"
+import { UseFormReturn, Controller, FieldPath, FieldValues } from "react-hook-form"
 
 interface FormProps<TFormValues> extends Omit<React.FormHTMLAttributes<HTMLFormElement>, 'children'> {
   form?: UseFormReturn<TFormValues>;
@@ -105,6 +105,35 @@ const FormSubmit = React.forwardRef<
 })
 FormSubmit.displayName = "FormSubmit"
 
+// Add FormField component
+interface FormFieldContextValue<
+  TFieldValues extends FieldValues = FieldValues,
+  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>
+> {
+  name: TName
+}
+
+const FormFieldContext = React.createContext<FormFieldContextValue>(
+  {} as FormFieldContextValue
+)
+
+const FormField = <
+  TFieldValues extends FieldValues = FieldValues,
+  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>
+>({
+  ...props
+}: {
+  control: any
+  name: TName
+  render: (props: { field: any }) => React.ReactNode
+}) => {
+  return (
+    <FormFieldContext.Provider value={{ name: props.name }}>
+      <Controller {...props} />
+    </FormFieldContext.Provider>
+  )
+}
+
 export {
   Form,
   FormItem,
@@ -113,4 +142,5 @@ export {
   FormDescription,
   FormMessage,
   FormSubmit,
+  FormField,
 } 
