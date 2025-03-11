@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/app/components/ui/card"
 import { Button } from "@/app/components/ui/button"
 import { AIAssistant } from "@/app/components/dashboard/AIAssistant"
+import { AlertCircle, RefreshCw, ArrowRight, Users, Calendar, BarChart3 } from "lucide-react"
 
 interface DashboardStats {
   totalReferrals: number
@@ -31,36 +32,40 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      if (status === "authenticated") {
-        try {
-          const response = await fetch("/api/analytics")
-          
-          if (!response.ok) {
-            throw new Error("Failed to fetch dashboard data")
-          }
-          
-          const data = await response.json()
-          
-          setStats({
-            totalReferrals: data.summary.totalReferrals,
-            totalClicks: data.summary.totalClicks,
-            totalConversions: data.summary.totalConversions,
-            conversionRate: data.summary.overallConversionRate,
-            activeReferrals: data.summary.activeReferralsCount,
-            activeCampaigns: data.summary.activeCampaignsCount,
-            totalCustomers: data.summary.customersCount,
-          })
-        } catch (error) {
-          setError("Error loading dashboard data")
-          console.error(error)
-        } finally {
-          setIsLoading(false)
+  const fetchDashboardData = async () => {
+    if (status === "authenticated") {
+      try {
+        setIsLoading(true)
+        setError(null)
+        
+        const response = await fetch("/api/analytics")
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.error || "Failed to fetch dashboard data")
         }
+        
+        const data = await response.json()
+        
+        setStats({
+          totalReferrals: data.summary.totalReferrals,
+          totalClicks: data.summary.totalClicks,
+          totalConversions: data.summary.totalConversions,
+          conversionRate: data.summary.overallConversionRate,
+          activeReferrals: data.summary.activeReferralsCount,
+          activeCampaigns: data.summary.activeCampaignsCount,
+          totalCustomers: data.summary.customersCount,
+        })
+      } catch (error) {
+        console.error("Dashboard data error:", error)
+        setError(error instanceof Error ? error.message : "Error loading dashboard data")
+      } finally {
+        setIsLoading(false)
       }
     }
-    
+  }
+  
+  useEffect(() => {
     fetchDashboardData()
   }, [status])
   
@@ -81,9 +86,14 @@ export default function DashboardPage() {
     return (
       <div className="container py-10">
         <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
-        <div className="bg-destructive/15 p-4 rounded-md text-destructive">
-          {error}
+        <div className="bg-destructive/15 p-6 rounded-md text-destructive mb-6 flex items-center gap-3">
+          <AlertCircle className="h-5 w-5" />
+          <p>{error}</p>
         </div>
+        <Button onClick={fetchDashboardData} variant="outline" className="flex items-center gap-2">
+          <RefreshCw className="h-4 w-4" />
+          Retry
+        </Button>
       </div>
     )
   }
@@ -154,8 +164,8 @@ export default function DashboardPage() {
         </Card>
       </div>
       
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <div className="md:col-span-2 h-[500px]">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
+        <div className="md:col-span-2 lg:col-span-2 h-[650px]">
           <AIAssistant userName={session?.user?.name || "there"} />
         </div>
         
@@ -169,22 +179,32 @@ export default function DashboardPage() {
           <CardContent className="space-y-2">
             <Link href="/customers/new">
               <Button variant="outline" className="w-full justify-start">
+                <Users className="mr-2 h-4 w-4" />
                 Add Customer
               </Button>
             </Link>
             <Link href="/follow-ups/new">
               <Button variant="outline" className="w-full justify-start">
+                <Calendar className="mr-2 h-4 w-4" />
                 Schedule Follow-up
               </Button>
             </Link>
             <Link href="/customers/import">
               <Button variant="outline" className="w-full justify-start">
+                <Users className="mr-2 h-4 w-4" />
                 Import Customers
               </Button>
             </Link>
             <Link href="/analytics">
               <Button variant="outline" className="w-full justify-start">
+                <BarChart3 className="mr-2 h-4 w-4" />
                 View Analytics
+              </Button>
+            </Link>
+            <Link href="/campaigns">
+              <Button variant="outline" className="w-full justify-start">
+                <ArrowRight className="mr-2 h-4 w-4" />
+                Manage Campaigns
               </Button>
             </Link>
           </CardContent>

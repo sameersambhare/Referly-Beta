@@ -1,49 +1,99 @@
 import mongoose from 'mongoose';
+import { MongoClient } from 'mongodb';
 
 const MONGODB_URI = process.env.MONGODB_URI;
+const MONGODB_DB = process.env.MONGODB_DB || 'referly';
 
 if (!MONGODB_URI) {
   throw new Error('Please define the MONGODB_URI environment variable inside .env.local');
 }
 
-// Define the global mongoose type
+// For Mongoose connection
+interface MongooseConnection {
+  conn: typeof mongoose | null;
+  promise: Promise<typeof mongoose> | null;
+}
+
+// For MongoDB native client
+interface MongoDBConnection {
+  client: MongoClient | null;
+  promise: Promise<MongoClient> | null;
+}
+
+// Define global types
 declare global {
-  let mongoose: {
-    conn: typeof mongoose | null;
-    promise: Promise<typeof mongoose> | null;
-  };
+  var mongooseConnection: MongooseConnection;
+  var mongodbConnection: MongoDBConnection;
 }
 
-// Initialize the cached connection
-let cached = global.mongoose;
+// Initialize cached connections
+let mongooseCache: MongooseConnection = global.mongooseConnection || { conn: null, promise: null };
+let mongodbCache: MongoDBConnection = global.mongodbConnection || { client: null, promise: null };
 
-if (!cached) {
-  cached = global.mongoose = { conn: null, promise: null };
+if (!global.mongooseConnection) {
+  global.mongooseConnection = mongooseCache;
 }
 
-async function connectToDatabase() {
-  if (cached.conn) {
-    return cached.conn;
+if (!global.mongodbConnection) {
+  global.mongodbConnection = mongodbCache;
+}
+
+/**
+ * Connect to MongoDB using Mongoose ORM
+ * @returns Mongoose connection
+ */
+export async function connectToMongoose() {
+  if (mongooseCache.conn) {
+    return mongooseCache.conn;
   }
 
-  if (!cached.promise) {
+  if (!mongooseCache.promise) {
     const opts = {
       bufferCommands: false,
+      dbName: MONGODB_DB,
     };
 
-    cached.promise = mongoose.connect(MONGODB_URI!, opts).then((mongoose) => {
+    mongooseCache.promise = mongoose.connect(MONGODB_URI!, opts).then((mongoose) => {
       return mongoose;
     });
   }
 
   try {
-    cached.conn = await cached.promise;
+    mongooseCache.conn = await mongooseCache.promise;
   } catch (e) {
-    cached.promise = null;
+    mongooseCache.promise = null;
     throw e;
   }
 
-  return cached.conn;
+  return mongooseCache.conn;
+}
+
+/**
+ * Connect to MongoDB using native MongoDB driver
+ * @returns MongoDB database instance
+ */
+export async function connectToDatabase() {
+  if (mongodbCache.client) {
+    return mongodbCache.client.db(MONGODB_DB);
+  }
+
+  if (!mongodbCache.promise) {
+    const opts = {
+      maxPoolSize: 50,
+      wtimeoutMS: 2500,
+    };
+
+    mongodbCache.promise = MongoClient.connect(MONGODB_URI!, opts);
+  }
+
+  try {
+    mongodbCache.client = await mongodbCache.promise;
+  } catch (e) {
+    mongodbCache.promise = null;
+    throw e;
+  }
+
+  return mongodbCache.client.db(MONGODB_DB);
 }
 
 export default connectToDatabase; 

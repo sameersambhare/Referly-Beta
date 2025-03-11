@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import {
   Card,
   CardContent,
@@ -15,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/components/ui/ta
 import { Campaign } from '@/types/api';
 
 export function CampaignManager() {
+  const { data: session } = useSession();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [filteredCampaigns, setFilteredCampaigns] = useState<Campaign[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -25,13 +27,22 @@ export function CampaignManager() {
   useEffect(() => {
     const fetchCampaigns = async () => {
       try {
-        const response = await fetch("/api/campaigns");
+        // Log session data for debugging
+        console.log("Session data:", session);
+        
+        // Get businessId from session if available
+        const businessId = session?.user?.id;
+        const url = businessId ? `/api/campaigns?businessId=${businessId}` : "/api/campaigns";
+        
+        console.log("Fetching campaigns from:", url);
+        const response = await fetch(url);
         
         if (!response.ok) {
           throw new Error("Failed to fetch campaigns");
         }
         
         const data = await response.json();
+        console.log("Fetched campaigns:", data);
         setCampaigns(data);
         setFilteredCampaigns(data);
       } catch (error) {
@@ -43,7 +54,7 @@ export function CampaignManager() {
     };
 
     fetchCampaigns();
-  }, []);
+  }, [session]);
 
   useEffect(() => {
     let filtered = campaigns;

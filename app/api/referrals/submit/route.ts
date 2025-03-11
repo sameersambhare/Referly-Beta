@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import connectToDatabase from '@/lib/mongodb';
-import User from '@/models/User';
-import Referral from '@/models/Referral';
-import Campaign from '@/models/Campaign';
-import Analytics from '@/models/Analytics';
+import { User, Referral, Campaign, Analytics } from '@/models';
+import { connectToDatabase } from '@/lib/mongodb';
 import { z } from 'zod';
 
 // Define validation schema

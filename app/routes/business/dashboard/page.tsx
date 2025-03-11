@@ -250,7 +250,7 @@ export default function DashboardPage() {
       </div>
       
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
-        <div className="md:col-span-2 lg:col-span-2">
+        <div className="md:col-span-2 lg:col-span-2 h-[650px]">
           <AIAssistant userName={session?.user?.name || "there"} />
         </div>
         

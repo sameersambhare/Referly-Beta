@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/options';
-import connectToDatabase from '@/lib/mongodb';
-import Analytics from '@/models/Analytics';
-import Referral from '@/models/Referral';
-import Campaign from '@/models/Campaign';
-import Customer from '@/models/Customer';
+import { Analytics, Referral, Campaign, Customer } from '@/models';
+import { connectToDatabase } from '@/lib/mongodb';
 import { AnalyticsQuery, AnalyticsData } from '@/types/api';
 
 // GET - Retrieve analytics for the authenticated business

@@ -1,12 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    serverActions: {
-      enabled: false
-    },
-    // Enable modern build optimizations
-    optimizeCss: true,
-    optimizePackageImports: ['@mui/material', '@mui/icons-material'],
+    serverActions: true,
+    // Disable experimental features that might cause issues
+    optimizeCss: false,
+    optimizePackageImports: [],
   },
   typescript: {
     // Temporarily ignore type errors during build
@@ -18,10 +16,12 @@ const nextConfig = {
   },
   // Add custom webpack config to handle specific issues
   webpack: (config, { dev, isServer }) => {
-    // Optimize bundle size
-    config.optimization = {
-      ...config.optimization,
-      minimize: true,
+    // Don't override optimization in development
+    if (!dev) {
+      config.optimization = {
+        ...config.optimization,
+        minimize: true,
+      }
     }
     
     // Handle module resolution issues

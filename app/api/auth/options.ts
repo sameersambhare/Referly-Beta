@@ -1,7 +1,7 @@
-import CredentialsProvider from 'next-auth/providers/credentials';
-import connectToDatabase from '@/lib/mongodb';
-import User from '@/models/User';
 import { NextAuthOptions } from 'next-auth';
+import CredentialsProvider from 'next-auth/providers/credentials';
+import { User } from '@/models';
+import { connectToDatabase } from '@/lib/mongodb';
 
 export const authOptions: NextAuthOptions = {
   providers: [

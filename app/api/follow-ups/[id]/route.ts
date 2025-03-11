@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/options';
-import connectToDatabase from '@/lib/mongodb';
-import FollowUp from '@/models/FollowUp';
-import Customer from '@/models/Customer';
+import { FollowUp, Customer } from '@/models';
+import { connectToDatabase } from '@/lib/mongodb';
 import { z } from 'zod';
 
 // Define validation schema for updating a follow-up

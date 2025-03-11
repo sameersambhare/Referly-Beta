@@ -67,7 +67,25 @@ function LoginForm() {
         return
       }
       
-      router.push(callbackUrl)
+      // Fetch user data to determine role
+      const userResponse = await fetch("/api/auth/me");
+      if (userResponse.ok) {
+        const userData = await userResponse.json();
+        
+        // Redirect based on user role
+        if (userData.role === "business") {
+          router.push("/dashboard");
+        } else if (userData.role === "referrer") {
+          router.push("/referrer/dashboard");
+        } else if (userData.role === "admin") {
+          router.push("/admin/dashboard");
+        } else {
+          router.push(callbackUrl);
+        }
+      } else {
+        // Fallback to default redirect
+        router.push(callbackUrl);
+      }
     } catch (error) {
       setError("An error occurred. Please try again.")
       setIsLoading(false)

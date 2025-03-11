@@ -83,12 +83,19 @@ export default function RegisterPage() {
       }
       
       // Sign in the user after successful registration
-      await signIn("credentials", {
+      const signInResult = await signIn("credentials", {
         redirect: false,
         email: data.email,
         password: data.password,
       })
       
+      if (signInResult?.error) {
+        setError("Account created but couldn't sign in automatically. Please sign in manually.")
+        setIsLoading(false)
+        return
+      }
+      
+      // Redirect to business dashboard
       router.push("/dashboard")
     } catch (error) {
       setError("An error occurred. Please try again.")

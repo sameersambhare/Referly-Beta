@@ -1,41 +1,59 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import { Schema, Types } from 'mongoose';
+import User, { IUser } from './User';
 
-export interface ICustomer extends Document {
-  businessId: mongoose.Types.ObjectId;
-  name: string;
-  email: string;
-  phone?: string;
-  notes?: string;
-  tags?: string[];
-  status: 'active' | 'inactive' | 'lead';
-  lastContactedAt?: Date;
-  createdAt: Date;
-  updatedAt: Date;
+// Regular Customer User (Person who has been referred)
+export interface ICustomer extends IUser {
+  role: 'customer';
+  referredBy: Types.ObjectId; // The referrer who referred this customer
+  referralCode?: string; // Their own referral code if they become a referrer
+  businessId: Types.ObjectId; // The business they were referred to
+  conversionStatus: 'pending' | 'converted' | 'lost'; // Whether they've completed the desired action
+  conversionDate?: Date; // When they completed the conversion
+  purchases: Types.ObjectId[]; // Their purchases from the business
+  availableRewards: Types.ObjectId[]; // Rewards earned from being referred
+  redeemedRewards: Types.ObjectId[]; // Rewards that have been redeemed
+  loyaltyPoints?: number; // Any loyalty points they've earned
+  referralId: Types.ObjectId; // The referral record that brought them in
+  preferences?: {
+    categories?: string[];
+    communicationPreferences?: {
+      email: boolean;
+      sms: boolean;
+    };
+  };
+  customerValue?: number; // Lifetime value of this customer
+  notes?: string; // Any notes about this customer
 }
 
-const CustomerSchema = new Schema<ICustomer>(
-  {
-    businessId: { 
-      type: Schema.Types.ObjectId, 
-      ref: 'User', 
-      required: true 
-    },
-    name: { type: String, required: true },
-    email: { type: String, required: true },
-    phone: { type: String },
-    notes: { type: String },
-    tags: [{ type: String }],
-    status: { 
-      type: String, 
-      enum: ['active', 'inactive', 'lead'], 
-      default: 'lead' 
-    },
-    lastContactedAt: { type: Date },
+// Customer Schema
+const CustomerSchema = new Schema<ICustomer>({
+  referredBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  referralCode: { type: String },
+  businessId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  conversionStatus: { 
+    type: String, 
+    enum: ['pending', 'converted', 'lost'],
+    default: 'pending'
   },
-  { timestamps: true }
-);
+  conversionDate: { type: Date },
+  purchases: [{ type: Schema.Types.ObjectId, ref: 'Purchase' }],
+  availableRewards: [{ type: Schema.Types.ObjectId, ref: 'Reward' }],
+  redeemedRewards: [{ type: Schema.Types.ObjectId, ref: 'Reward' }],
+  loyaltyPoints: { type: Number, default: 0 },
+  referralId: { type: Schema.Types.ObjectId, ref: 'Referral', required: true },
+  preferences: {
+    categories: [{ type: String }],
+    communicationPreferences: {
+      email: { type: Boolean, default: true },
+      sms: { type: Boolean, default: false }
+    }
+  },
+  customerValue: { type: Number, default: 0 },
+  notes: { type: String }
+});
 
-// Create a compound index for business and email to ensure uniqueness
-CustomerSchema.index({ businessId: 1, email: 1 }, { unique: true });
+// Create the Customer model as a discriminator of User
+export const Customer = User.discriminators?.Customer || 
+  User.discriminator<ICustomer>('Customer', CustomerSchema);
 
-export default mongoose.models.Customer || mongoose.model<ICustomer>('Customer', CustomerSchema); 
+export default Customer; 

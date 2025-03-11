@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/options';
-import connectToDatabase from '@/lib/mongodb';
-import Campaign from '@/models/Campaign';
+import { Campaign } from '@/models';
+import { connectToDatabase } from '@/lib/mongodb';
 import { z } from 'zod';
 
 // Define validation schema for updating a campaign

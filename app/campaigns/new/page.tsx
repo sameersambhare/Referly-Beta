@@ -10,6 +10,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/app/components/ui/button"
 import { Input } from "@/app/components/ui/input"
 import { Textarea } from "@/app/components/ui/textarea"
+import { AlertCircle } from "lucide-react"
 import { 
   Card, 
   CardContent, 
@@ -40,7 +41,7 @@ const formSchema = z.object({
   startDate: z.string().min(1, "Start date is required"),
   endDate: z.string().optional(),
   rewardType: z.enum(['cash', 'discount', 'gift', 'points']),
-  rewardAmount: z.string().min(1, "Reward amount is required").transform(val => parseFloat(val)),
+  rewardAmount: z.coerce.number().min(0, "Reward amount must be a positive number"),
   rewardDescription: z.string().optional(),
   targetAudience: z.string().optional(),
   conversionCriteria: z.string().optional(),
@@ -67,7 +68,7 @@ export default function NewCampaignPage() {
       startDate: today,
       endDate: "",
       rewardType: "cash",
-      rewardAmount: "",
+      rewardAmount: 0,
       rewardDescription: "",
       targetAudience: "",
       conversionCriteria: "",
@@ -82,12 +83,20 @@ export default function NewCampaignPage() {
     setError(null)
     
     try {
+      // Include the businessId from the session if available
+      const payload = {
+        ...data,
+        businessId: session?.user?.id || "demo-business"
+      };
+      
+      console.log("Submitting campaign data:", payload);
+      
       const response = await fetch("/api/campaigns", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       })
       
       const result = await response.json()
@@ -98,12 +107,28 @@ export default function NewCampaignPage() {
         return
       }
       
+      console.log("Campaign created successfully:", result);
       router.push("/campaigns")
     } catch (error) {
       setError("An error occurred. Please try again.")
       console.error(error)
       setIsLoading(false)
     }
+  }
+  
+  // Handle form errors
+  const onError = (errors: any) => {
+    console.log(errors);
+    const requiredFields = [];
+    if (errors.name) requiredFields.push("Campaign Name");
+    if (errors.startDate) requiredFields.push("Start Date");
+    if (errors.rewardType) requiredFields.push("Reward Type");
+    if (errors.rewardAmount) requiredFields.push("Reward Amount");
+    
+    if (requiredFields.length > 0) {
+      setError(`Please fill in all required fields: ${requiredFields.join(", ")}`);
+    }
+    setIsLoading(false);
   }
   
   if (status === "loading") {
@@ -133,33 +158,43 @@ export default function NewCampaignPage() {
         </CardHeader>
         <CardContent>
           {error && (
-            <div className="mb-4 rounded-md bg-destructive/15 p-3 text-sm text-destructive">
-              {error}
+            <div className="mb-4 rounded-md bg-destructive/15 p-4 text-destructive flex items-start gap-2">
+              <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="font-medium">{error}</p>
+                {error.includes("required fields") && (
+                  <p className="text-sm mt-1">Please check the fields marked with an asterisk (*) and highlighted in red.</p>
+                )}
+              </div>
             </div>
           )}
           
           <Form form={form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(onSubmit, onError)} className="space-y-6">
+              <p className="text-sm text-muted-foreground mb-4">Fields marked with an asterisk (*) are required.</p>
+              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormItem>
-                  <FormLabel>Campaign Name*</FormLabel>
+                <FormItem className={form.formState.errors.name ? "border-l-2 border-destructive pl-3" : ""}>
+                  <FormLabel className={form.formState.errors.name ? "text-destructive" : ""}>Campaign Name*</FormLabel>
                   <FormControl>
                     <Input
                       placeholder="Summer Referral Program"
                       {...form.register("name")}
                       disabled={isLoading}
+                      className={form.formState.errors.name ? "border-destructive" : ""}
                     />
                   </FormControl>
                   <FormMessage>{form.formState.errors.name?.message}</FormMessage>
                 </FormItem>
                 
-                <FormItem>
-                  <FormLabel>Start Date*</FormLabel>
+                <FormItem className={form.formState.errors.startDate ? "border-l-2 border-destructive pl-3" : ""}>
+                  <FormLabel className={form.formState.errors.startDate ? "text-destructive" : ""}>Start Date*</FormLabel>
                   <FormControl>
                     <Input
                       type="date"
                       {...form.register("startDate")}
                       disabled={isLoading}
+                      className={form.formState.errors.startDate ? "border-destructive" : ""}
                     />
                   </FormControl>
                   <FormMessage>{form.formState.errors.startDate?.message}</FormMessage>
@@ -206,15 +241,15 @@ export default function NewCampaignPage() {
               <div className="border-t pt-6">
                 <h3 className="text-lg font-medium mb-4">Reward Details</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <FormItem>
-                    <FormLabel>Reward Type*</FormLabel>
+                  <FormItem className={form.formState.errors.rewardType ? "border-l-2 border-destructive pl-3" : ""}>
+                    <FormLabel className={form.formState.errors.rewardType ? "text-destructive" : ""}>Reward Type*</FormLabel>
                     <Select
                       defaultValue={form.getValues("rewardType")}
                       onValueChange={(value) => form.setValue("rewardType", value as any)}
                       disabled={isLoading}
                     >
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className={form.formState.errors.rewardType ? "border-destructive" : ""}>
                           <SelectValue placeholder="Select reward type" />
                         </SelectTrigger>
                       </FormControl>
@@ -228,14 +263,17 @@ export default function NewCampaignPage() {
                     <FormMessage>{form.formState.errors.rewardType?.message}</FormMessage>
                   </FormItem>
                   
-                  <FormItem>
-                    <FormLabel>Reward Amount*</FormLabel>
+                  <FormItem className={form.formState.errors.rewardAmount ? "border-l-2 border-destructive pl-3" : ""}>
+                    <FormLabel className={form.formState.errors.rewardAmount ? "text-destructive" : ""}>Reward Amount*</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
+                        min="0"
+                        step="0.01"
                         placeholder="50"
-                        {...form.register("rewardAmount")}
+                        {...form.register("rewardAmount", { valueAsNumber: true })}
                         disabled={isLoading}
+                        className={form.formState.errors.rewardAmount ? "border-destructive" : ""}
                       />
                     </FormControl>
                     <FormMessage>{form.formState.errors.rewardAmount?.message}</FormMessage>

@@ -1,38 +1,34 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import { Schema, model, models, Document, Types } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
+// Base User interface with common fields
 export interface IUser extends Document {
-  name: string;
   email: string;
   password: string;
-  phone?: string;
-  role: 'business' | 'admin' | 'referrer';
-  businessName?: string;
-  industry?: string;
-  referralCode?: string;
-  referredBy?: mongoose.Types.ObjectId;
+  name: string;
+  role: 'business' | 'referrer' | 'customer' | 'admin';
   createdAt: Date;
   updatedAt: Date;
-  comparePassword(candidatePassword: string): Promise<boolean>;
+  image?: string;
 }
 
+// Base User Schema
 const UserSchema = new Schema<IUser>(
   {
-    name: { type: String, required: true },
-    email: { type: String, required: true, unique: true, lowercase: true },
+    email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
-    phone: { type: String },
+    name: { type: String, required: true },
     role: { 
       type: String, 
-      enum: ['business', 'admin', 'referrer'], 
-      default: 'business' 
+      enum: ['business', 'referrer', 'customer', 'admin'], 
+      required: true 
     },
-    businessName: { type: String },
-    industry: { type: String },
-    referralCode: { type: String, unique: true, sparse: true },
-    referredBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    image: { type: String },
   },
-  { timestamps: true }
+  { 
+    timestamps: true,
+    discriminatorKey: 'role' 
+  }
 );
 
 // Hash password before saving
@@ -53,6 +49,8 @@ UserSchema.methods.comparePassword = async function(candidatePassword: string): 
   return bcrypt.compare(candidatePassword, this.password);
 };
 
-// Create and export the model
-export default mongoose.models.User || mongoose.model<IUser>('User', UserSchema); 
+// Create and export the User model
+export const User = models.User || model<IUser>('User', UserSchema);
+
+export default User; 
  
