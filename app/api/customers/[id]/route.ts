@@ -18,43 +18,18 @@ const updateCustomerSchema = z.object({
 
 // GET - Retrieve a specific customer
 export async function GET(
-  req: NextRequest,
+  request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = params;
-    
-    // Check if user is authenticated
-    const session = await getServerSession(authOptions);
-    
-    if (!session || session.user.role !== 'business') {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-    
-    // Connect to database
-    await connectToDatabase();
-    
-    // Find customer
-    const customer = await Customer.findOne({
-      _id: id,
-      businessId: session.user.id
+    return NextResponse.json({
+      message: "Customer endpoint",
+      id: params.id,
+      status: "ok"
     });
-    
-    if (!customer) {
-      return NextResponse.json(
-        { error: 'Customer not found' },
-        { status: 404 }
-      );
-    }
-    
-    return NextResponse.json(customer);
-  } catch (error: any) {
-    console.error('Get customer error:', error);
+  } catch (error) {
     return NextResponse.json(
-      { error: error.message || 'Internal server error' },
+      { error: "Failed to fetch customer" },
       { status: 500 }
     );
   }

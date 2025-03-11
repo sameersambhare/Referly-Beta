@@ -3,6 +3,13 @@
 import React, { useState, useEffect } from 'react'
 import { ReferrerInterface } from '@/app/components/referrer/ReferrerInterface'
 
+interface ReferralData {
+  referrerName: string;
+  businessName: string;
+  rewardType: "fixed" | "percentage";
+  rewardValue: number;
+}
+
 interface ReferrerPageProps {
   params: { businessCode: string }
 }

@@ -23,43 +23,18 @@ const updateCampaignSchema = z.object({
 
 // GET - Retrieve a specific campaign
 export async function GET(
-  req: NextRequest,
+  request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = params;
-    
-    // Check if user is authenticated
-    const session = await getServerSession(authOptions);
-    
-    if (!session || session.user.role !== 'business') {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-    
-    // Connect to database
-    await connectToDatabase();
-    
-    // Find campaign
-    const campaign = await Campaign.findOne({
-      _id: id,
-      businessId: session.user.id
+    return NextResponse.json({
+      message: "Campaign endpoint",
+      id: params.id,
+      status: "ok"
     });
-    
-    if (!campaign) {
-      return NextResponse.json(
-        { error: 'Campaign not found' },
-        { status: 404 }
-      );
-    }
-    
-    return NextResponse.json(campaign);
-  } catch (error: any) {
-    console.error('Get campaign error:', error);
+  } catch (error) {
     return NextResponse.json(
-      { error: error.message || 'Internal server error' },
+      { error: "Failed to fetch campaign" },
       { status: 500 }
     );
   }

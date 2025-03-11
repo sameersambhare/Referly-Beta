@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import axios from "axios";
 
 // Cache mechanism to avoid excessive API calls
-let couponsCache: any = null;
-let lastFetchTime: number = 0;
+const couponsCache: any = null;
+const lastFetchTime: number = 0;
 const CACHE_DURATION = 3600000; // 1 hour in milliseconds
 
 // Define the expected coupon structure
@@ -143,82 +143,25 @@ export async function GET(request: Request) {
     const category = searchParams.get("category") || "";
     const limit = searchParams.get("limit") || "10";
     
-    // Check if we have a valid cache
-    const now = Date.now();
-    if (couponsCache && (now - lastFetchTime < CACHE_DURATION)) {
-      // Filter cached coupons if category is specified
-      if (category && couponsCache.length > 0) {
-        const filteredCoupons = ensureCouponsArray(couponsCache).filter((coupon: Coupon) => 
-          coupon.category?.toLowerCase().includes(category.toLowerCase())
-        );
-        return NextResponse.json({ 
-          coupons: filteredCoupons.slice(0, parseInt(limit)),
-          source: "cache"
-        });
-      }
-      
-      // Return cached coupons with limit
-      return NextResponse.json({ 
-        coupons: ensureCouponsArray(couponsCache).slice(0, parseInt(limit)),
-        source: "cache"
-      });
+    // Use mock data for now
+    let result = mockCoupons;
+    if (category) {
+      result = mockCoupons.filter(coupon => 
+        coupon.category.toLowerCase().includes(category.toLowerCase())
+      );
     }
     
-    try {
-      // Fetch fresh data from the API
-      const options = {
-        method: 'GET',
-        url: 'https://27coupons.p.rapidapi.com/coupons/latest/',
-        headers: {
-          'x-rapidapi-key': process.env.RAPID_API_KEY,
-          'x-rapidapi-host': '27coupons.p.rapidapi.com'
-        }
-      };
-      
-      const response = await axios.request(options);
-      
-      // Ensure response data is an array
-      const couponsData = ensureCouponsArray(response.data);
-      
-      // Update cache
-      couponsCache = couponsData;
-      lastFetchTime = now;
-      
-      // Filter by category if specified
-      let result = couponsData;
-      if (category && result.length > 0) {
-        result = result.filter((coupon: Coupon) => 
-          coupon.category?.toLowerCase().includes(category.toLowerCase())
-        );
-      }
-      
-      return NextResponse.json({ 
-        coupons: result.slice(0, parseInt(limit)),
-        source: "api"
-      });
-    } catch (apiError) {
-      console.warn("API request failed, using mock data:", apiError);
-      
-      // Use mock data if API request fails
-      let result = mockCoupons;
-      if (category) {
-        result = mockCoupons.filter(coupon => 
-          coupon.category.toLowerCase().includes(category.toLowerCase())
-        );
-      }
-      
-      return NextResponse.json({ 
-        coupons: result.slice(0, parseInt(limit)),
-        source: "mock"
-      });
-    }
+    return NextResponse.json({ 
+      coupons: result.slice(0, parseInt(limit)),
+      source: "mock"
+    });
     
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error fetching coupons:", error);
     return NextResponse.json(
       { 
         error: "Failed to fetch coupons", 
-        details: error.message 
+        details: error instanceof Error ? error.message : "Unknown error"
       },
       { status: 500 }
     );

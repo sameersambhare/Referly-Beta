@@ -1,92 +1,69 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
-import User from '@/models/User';
-import { z } from 'zod';
+import bcrypt from "bcryptjs";
 
-// Define validation schema
-const registerSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters'),
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-  role: z.enum(['business', 'admin', 'referrer']).default('business'),
-  businessName: z.string().optional(),
-  industry: z.string().optional(),
-  phone: z.string().optional(),
-  referralCode: z.string().optional(),
-});
+interface RegisterRequest {
+  email: string;
+  password: string;
+  name: string;
+  businessName: string;
+}
 
-export async function POST(req: NextRequest) {
+interface RegisterResponse {
+  success: boolean;
+  message: string;
+  userId?: string;
+}
+
+export async function POST(request: Request): Promise<NextResponse<RegisterResponse>> {
   try {
-    const body = await req.json();
-    
-    // Validate request body
-    const validationResult = registerSchema.safeParse(body);
-    
-    if (!validationResult.success) {
+    const { email, password, name, businessName } = (await request.json()) as RegisterRequest;
+
+    if (!email || !password || !name || !businessName) {
       return NextResponse.json(
-        { error: validationResult.error.errors },
+        { success: false, message: "Missing required fields" },
         { status: 400 }
       );
     }
-    
-    const { name, email, password, role, businessName, industry, phone, referralCode } = validationResult.data;
-    
-    // Connect to database
-    await connectToDatabase();
-    
+
+    const db = await connectToDatabase();
+    const usersCollection = db.collection("users");
+
     // Check if user already exists
-    const existingUser = await User.findOne({ email });
-    
+    const existingUser = await usersCollection.findOne({ email });
     if (existingUser) {
       return NextResponse.json(
-        { error: 'User with this email already exists' },
+        { success: false, message: "User already exists" },
         { status: 409 }
       );
     }
-    
-    // Create referral code for business users if not provided
-    let userReferralCode = referralCode;
-    if (role === 'business' && !userReferralCode) {
-      userReferralCode = generateReferralCode(name);
-    }
-    
-    // Create new user
-    const newUser = new User({
-      name,
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create user
+    const result = await usersCollection.insertOne({
       email,
-      password,
-      role,
-      businessName: role === 'business' ? businessName : undefined,
-      industry: role === 'business' ? industry : undefined,
-      phone,
-      referralCode: userReferralCode,
+      password: hashedPassword,
+      name,
+      businessName,
+      role: "business",
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
-    
-    // If referral code is provided, find the referring user
-    if (referralCode && role === 'business') {
-      const referrer = await User.findOne({ referralCode });
-      if (referrer) {
-        newUser.referredBy = referrer._id;
-      }
-    }
-    
-    await newUser.save();
-    
-    // Return success response without password
-    const userResponse = {
-      id: newUser._id,
-      name: newUser.name,
-      email: newUser.email,
-      role: newUser.role,
-      businessName: newUser.businessName,
-      referralCode: newUser.referralCode,
-    };
-    
-    return NextResponse.json(userResponse, { status: 201 });
-  } catch (error: any) {
-    console.error('Registration error:', error);
+
     return NextResponse.json(
-      { error: error.message || 'Internal server error' },
+      {
+        success: true,
+        message: "User registered successfully",
+        userId: result.insertedId.toString(),
+      },
+      { status: 201 }
+    );
+  } catch (err) {
+    console.error("Registration error:", err);
+    return NextResponse.json(
+      { success: false, message: "Internal server error" },
       { status: 500 }
     );
   }

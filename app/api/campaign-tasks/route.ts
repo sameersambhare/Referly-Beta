@@ -1,179 +1,162 @@
-import { NextResponse } from "next/server";
-import { z } from "zod";
+import { NextResponse } from 'next/server';
+import { connectToDatabase } from '@/lib/db';
+import { Task, TaskStatus } from '@/types/api';
+import { z } from 'zod';
 
-// Define task schema
-const TaskSchema = z.object({
-  id: z.string().optional(),
-  campaignId: z.string(),
-  title: z.string(),
-  description: z.string(),
-  completionCriteria: z.string(),
-  rewardType: z.enum(["discount", "payout"]),
-  rewardValue: z.string(),
-  status: z.enum(["active", "completed", "pending"]).default("active"),
-  createdAt: z.date().optional(),
-  updatedAt: z.date().optional(),
-});
+interface TaskRequest {
+  campaignId: string;
+  title: string;
+  description: string;
+  points: number;
+  type: string;
+  requirements: string[];
+}
 
-// Define completion schema
-const CompletionSchema = z.object({
-  taskId: z.string(),
-  referrerId: z.string(),
-  refereeId: z.string(),
-  completionDate: z.date().optional(),
-  status: z.enum(["pending", "verified", "rejected"]).default("pending"),
-  verificationMethod: z.string().optional(),
-  verificationData: z.any().optional(),
-});
+interface ErrorResponse {
+  error: string;
+  details?: unknown;
+}
 
-// Mock database
-let tasks: any[] = [
-  {
-    id: "task-001",
-    campaignId: "campaign-001",
-    title: "Sign up for a free trial",
-    description: "Complete the sign-up process for a 14-day free trial of our premium service.",
-    completionCriteria: "User must create an account and confirm email",
-    rewardType: "discount",
-    rewardValue: "25%",
-    status: "active",
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  {
-    id: "task-002",
-    campaignId: "campaign-001",
-    title: "Schedule a demo",
-    description: "Book a 30-minute demo with our product specialist.",
-    completionCriteria: "User must schedule and attend a demo session",
-    rewardType: "payout",
-    rewardValue: "$50",
-    status: "active",
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  }
-];
-
-let completions: any[] = [];
-
-// GET all tasks or filter by campaignId
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const campaignId = searchParams.get("campaignId");
-    
-    if (campaignId) {
-      const filteredTasks = tasks.filter(task => task.campaignId === campaignId);
-      return NextResponse.json({ tasks: filteredTasks });
+
+    if (!campaignId) {
+      return NextResponse.json<ErrorResponse>(
+        { error: "Campaign ID is required" },
+        { status: 400 }
+      );
     }
-    
-    return NextResponse.json({ tasks });
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: "Failed to fetch tasks", details: error.message },
+
+    const db = await connectToDatabase();
+    const tasks = await db.collection<Task>("tasks")
+      .find({ campaignId })
+      .sort({ createdAt: -1 })
+      .toArray();
+
+    return NextResponse.json(tasks);
+  } catch (err) {
+    console.error("Error fetching tasks:", err);
+    return NextResponse.json<ErrorResponse>(
+      { error: "Failed to fetch tasks" },
       { status: 500 }
     );
   }
 }
 
-// POST a new task
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    
-    // Validate task data
-    const taskData = TaskSchema.parse({
-      ...body,
-      id: `task-${Date.now()}`,
+    const body = await request.json() as TaskRequest;
+    const { campaignId, title, description, points, type, requirements } = body;
+
+    if (!campaignId || !title || !description) {
+      return NextResponse.json<ErrorResponse>(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    const db = await connectToDatabase();
+    const result = await db.collection<Task>("tasks").insertOne({
+      campaignId,
+      title,
+      description,
+      points,
+      type,
+      requirements,
+      status: "active" as TaskStatus,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    
-    tasks.push(taskData);
-    
-    return NextResponse.json({ task: taskData }, { status: 201 });
-  } catch (error: any) {
-    if (error.name === "ZodError") {
-      return NextResponse.json(
-        { error: "Validation error", details: error.errors },
-        { status: 400 }
-      );
-    }
-    
-    return NextResponse.json(
-      { error: "Failed to create task", details: error.message },
+
+    const task = await db.collection<Task>("tasks").findOne({
+      _id: result.insertedId,
+    });
+
+    return NextResponse.json(task, { status: 201 });
+  } catch (err) {
+    console.error("Error creating task:", err);
+    return NextResponse.json<ErrorResponse>(
+      { error: "Failed to create task" },
       { status: 500 }
     );
   }
 }
 
-// PUT to update a task
-export async function PUT(request: Request) {
+export async function PATCH(request: Request) {
   try {
     const body = await request.json();
-    const { id, ...updateData } = body;
-    
-    if (!id) {
-      return NextResponse.json(
-        { error: "Task ID is required" },
+    const { taskId, status } = body;
+
+    if (!taskId || !status) {
+      return NextResponse.json<ErrorResponse>(
+        { error: "Task ID and status are required" },
         { status: 400 }
       );
     }
-    
-    const taskIndex = tasks.findIndex(task => task.id === id);
-    
-    if (taskIndex === -1) {
-      return NextResponse.json(
+
+    const db = await connectToDatabase();
+    const result = await db.collection<Task>("tasks").updateOne(
+      { _id: taskId },
+      {
+        $set: {
+          status,
+          updatedAt: new Date(),
+        },
+      }
+    );
+
+    if (result.matchedCount === 0) {
+      return NextResponse.json<ErrorResponse>(
         { error: "Task not found" },
         { status: 404 }
       );
     }
-    
-    // Update task
-    tasks[taskIndex] = {
-      ...tasks[taskIndex],
-      ...updateData,
-      updatedAt: new Date(),
-    };
-    
-    return NextResponse.json({ task: tasks[taskIndex] });
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: "Failed to update task", details: error.message },
+
+    const task = await db.collection<Task>("tasks").findOne({
+      _id: taskId,
+    });
+
+    return NextResponse.json(task);
+  } catch (err) {
+    console.error("Error updating task:", err);
+    return NextResponse.json<ErrorResponse>(
+      { error: "Failed to update task" },
       { status: 500 }
     );
   }
 }
 
-// DELETE a task
 export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const id = searchParams.get("id");
-    
-    if (!id) {
-      return NextResponse.json(
+    const taskId = searchParams.get("taskId");
+
+    if (!taskId) {
+      return NextResponse.json<ErrorResponse>(
         { error: "Task ID is required" },
         { status: 400 }
       );
     }
-    
-    const taskIndex = tasks.findIndex(task => task.id === id);
-    
-    if (taskIndex === -1) {
-      return NextResponse.json(
+
+    const db = await connectToDatabase();
+    const result = await db.collection<Task>("tasks").deleteOne({
+      _id: taskId,
+    });
+
+    if (result.deletedCount === 0) {
+      return NextResponse.json<ErrorResponse>(
         { error: "Task not found" },
         { status: 404 }
       );
     }
-    
-    // Remove task
-    tasks = tasks.filter(task => task.id !== id);
-    
+
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: "Failed to delete task", details: error.message },
+  } catch (err) {
+    console.error("Error deleting task:", err);
+    return NextResponse.json<ErrorResponse>(
+      { error: "Failed to delete task" },
       { status: 500 }
     );
   }

@@ -1,24 +1,22 @@
 "use client"
 
 import * as React from "react"
-import { useFormStatus } from "react-dom"
 import { cn } from "@/lib/utils"
 import { Label } from "./label"
 import { UseFormReturn, Controller, FieldPath, FieldValues } from "react-hook-form"
 
-interface FormProps<TFormValues> extends Omit<React.FormHTMLAttributes<HTMLFormElement>, 'children'> {
+interface FormProps<TFormValues extends FieldValues> extends Omit<React.FormHTMLAttributes<HTMLFormElement>, 'children'> {
   form?: UseFormReturn<TFormValues>;
   children: React.ReactNode;
 }
 
-const Form = <TFormValues extends Record<string, any> = Record<string, any>>({
-  form,
+const Form = <TFormValues extends FieldValues>({
   className,
   children,
   ...props
 }: FormProps<TFormValues>) => {
   return (
-    <div className={cn("space-y-6", className)}>
+    <div className={cn("space-y-6", className)} {...props}>
       {children}
     </div>
   )
@@ -83,53 +81,38 @@ const FormMessage = React.forwardRef<
 ))
 FormMessage.displayName = "FormMessage"
 
-const FormSubmit = React.forwardRef<
-  HTMLButtonElement,
-  React.ButtonHTMLAttributes<HTMLButtonElement>
->(({ className, children, ...props }, ref) => {
-  const { pending } = useFormStatus()
-  
-  return (
-    <button
-      ref={ref}
-      className={cn(
-        "inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
-        className
-      )}
-      disabled={pending}
-      {...props}
-    >
-      {pending ? "Submitting..." : children}
-    </button>
-  )
-})
-FormSubmit.displayName = "FormSubmit"
-
-// Add FormField component
-interface FormFieldContextValue<
-  TFieldValues extends FieldValues = FieldValues,
-  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>
-> {
-  name: TName
+interface FormFieldContextValue {
+  name: string;
 }
 
 const FormFieldContext = React.createContext<FormFieldContextValue>(
   {} as FormFieldContextValue
 )
 
+interface FormFieldProps<
+  TFieldValues extends FieldValues = FieldValues,
+  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>
+> {
+  control: UseFormReturn<TFieldValues>['control'];
+  name: TName;
+  render: (props: { field: UseFormReturn<TFieldValues>['register'] }) => React.ReactNode;
+}
+
 const FormField = <
   TFieldValues extends FieldValues = FieldValues,
   TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>
 >({
-  ...props
-}: {
-  control: any
-  name: TName
-  render: (props: { field: any }) => React.ReactNode
-}) => {
+  control,
+  name,
+  render,
+}: FormFieldProps<TFieldValues, TName>) => {
   return (
-    <FormFieldContext.Provider value={{ name: props.name }}>
-      <Controller {...props} />
+    <FormFieldContext.Provider value={{ name }}>
+      <Controller
+        control={control}
+        name={name}
+        render={({ field }) => render({ field })}
+      />
     </FormFieldContext.Provider>
   )
 }
@@ -141,6 +124,5 @@ export {
   FormControl,
   FormDescription,
   FormMessage,
-  FormSubmit,
   FormField,
 } 
