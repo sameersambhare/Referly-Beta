@@ -70,19 +70,19 @@ export async function POST(request: Request) {
       )
     }
     
-    // Create a new reward for the customer for sharing
+    // Create immediate reward for sharing
     const reward = {
       userId: new ObjectId(userId),
       campaignId: new ObjectId(campaignId),
       businessId: campaign.businessId,
       type: campaign.rewardType || "discount",
       amount: campaign.rewardAmount || 0,
-      status: "pending",
-      shareMethod: shareMethod,
+      status: "active",
+      shareMethod,
       dateEarned: new Date(),
       dateRedeemed: null,
-      description: `Reward for sharing ${campaign.name} campaign via ${shareMethod}`,
-      claimable: false // Only claimable after successful referral completion
+      description: `Reward for sharing ${campaign.name} campaign`,
+      claimable: true // Immediate reward for sharing
     }
     
     const rewardResult = await db.collection("rewards").insertOne(reward)
@@ -114,11 +114,12 @@ export async function POST(request: Request) {
       code: referralCode,
       customerId: new ObjectId(userId),
       campaignId: new ObjectId(campaignId),
-      shareMethod: shareMethod,
+      shareMethod,
       createdAt: new Date(),
       clicks: 0,
       conversions: 0,
-      active: true
+      active: true,
+      rewardId: rewardResult.insertedId // Track the reward ID
     }
     
     const referralResult = await db.collection("referralLinks").insertOne(referralLink)
@@ -142,7 +143,8 @@ export async function POST(request: Request) {
         id: rewardResult.insertedId.toString(),
         type: reward.type,
         amount: reward.amount,
-        status: reward.status
+        status: reward.status,
+        claimable: reward.claimable
       }
     })
     

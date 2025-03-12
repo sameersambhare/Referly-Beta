@@ -54,6 +54,14 @@ export async function POST(request: Request) {
         { status: 404 }
       )
     }
+
+    // Check if this customer is trying to use their own referral link
+    if (referralLink.customerId.toString() === userId) {
+      return NextResponse.json(
+        { error: "You cannot use your own referral link" },
+        { status: 400 }
+      )
+    }
     
     // Find the conversion record
     const conversion = await db.collection("conversions").findOne({
@@ -115,41 +123,47 @@ export async function POST(request: Request) {
       userId: new ObjectId(userId),
       campaignId: campaign._id,
       businessId: campaign.businessId,
-      type: campaign.rewardType || "discount",
-      amount: campaign.rewardAmount || 0,
-      status: "pending",
+      type: campaign.customerRewardType || "discount",
+      amount: campaign.customerRewardAmount || 0,
+      status: "active",
       dateEarned: new Date(),
       dateRedeemed: null,
       description: `Reward for completing ${campaign.name} campaign referral`,
       claimable: true,
-      code: generateRewardCode()
+      code: generateRewardCode(),
+      referralCode: referralCode
     }
     
-    await db.collection("rewards").insertOne(customerReward)
+    const customerRewardResult = await db.collection("rewards").insertOne(customerReward)
     
-    // Create reward for the referrer
-    const referrerReward = {
-      userId: referralLink.customerId, // The customer who shared the link
-      campaignId: campaign._id,
-      businessId: campaign.businessId,
-      type: campaign.referrerRewardType || campaign.rewardType || "discount",
-      amount: campaign.referrerRewardAmount || campaign.rewardAmount || 0,
-      status: "pending",
-      dateEarned: new Date(),
-      dateRedeemed: null,
-      description: `Reward for successful referral of ${campaign.name} campaign`,
-      claimable: true,
-      code: generateRewardCode()
-    }
-    
-    await db.collection("rewards").insertOne(referrerReward)
+    // Activate the referrer's reward that was created during sharing
+    const referrerRewardResult = await db.collection("rewards").updateOne(
+      { 
+        userId: referralLink.customerId,
+        campaignId: campaign._id,
+        status: "pending"
+      },
+      { 
+        $set: { 
+          status: "active",
+          claimable: true,
+          dateActivated: new Date(),
+          referralCompletedBy: new ObjectId(userId)
+        }
+      }
+    )
     
     // Add this customer to the referrer's successful referrals
     await db.collection("users").updateOne(
       { _id: referralLink.customerId },
       { 
         $addToSet: { 
-          successfulReferrals: new ObjectId(userId)
+          successfulReferrals: {
+            userId: new ObjectId(userId),
+            campaignId: campaign._id,
+            date: new Date(),
+            rewardId: customerRewardResult.insertedId
+          }
         }
       }
     )
@@ -157,9 +171,12 @@ export async function POST(request: Request) {
     return NextResponse.json({
       message: "Referral completed successfully!",
       reward: {
+        id: customerRewardResult.insertedId.toString(),
         type: customerReward.type,
         amount: customerReward.amount,
-        code: customerReward.code
+        code: customerReward.code,
+        status: customerReward.status,
+        claimable: customerReward.claimable
       }
     })
     
