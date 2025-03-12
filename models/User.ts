@@ -10,6 +10,7 @@ export interface IUser extends Document {
   createdAt: Date;
   updatedAt: Date;
   image?: string;
+  comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
 // Base User Schema
@@ -36,17 +37,27 @@ UserSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
   
   try {
+    console.log(`Hashing password for user: ${this.email}`);
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
     next();
   } catch (error: any) {
+    console.error(`Error hashing password: ${error.message}`);
     next(error);
   }
 });
 
 // Method to compare password
 UserSchema.methods.comparePassword = async function(candidatePassword: string): Promise<boolean> {
-  return bcrypt.compare(candidatePassword, this.password);
+  try {
+    console.log(`Comparing password for user: ${this.email}`);
+    const isMatch = await bcrypt.compare(candidatePassword, this.password);
+    console.log(`Password match result: ${isMatch}`);
+    return isMatch;
+  } catch (error: any) {
+    console.error(`Error comparing password: ${error.message}`);
+    return false;
+  }
 };
 
 // Create and export the User model

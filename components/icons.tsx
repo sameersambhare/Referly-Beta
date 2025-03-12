@@ -25,6 +25,15 @@ import {
   X,
   Building,
   LogOut,
+  Share,
+  Mail,
+  MessageSquare,
+  Phone,
+  Link,
+  Gift,
+  LayoutDashboard,
+  Megaphone,
+  ShoppingBag,
   type Icon as LucideIcon,
 } from "lucide-react"
 
@@ -57,6 +66,15 @@ export const Icons = {
   twitter: Twitter,
   check: Check,
   menu: Menu,
+  share: Share,
+  mail: Mail,
+  messageSquare: MessageSquare,
+  phone: Phone,
+  link: Link,
+  gift: Gift,
+  dashboard: LayoutDashboard,
+  megaphone: Megaphone,
+  shoppingBag: ShoppingBag,
   // Custom SVG icons
   google: ({ ...props }) => (
     <svg
@@ -75,4 +93,4 @@ export const Icons = {
       ></path>
     </svg>
   ),
-} 
+}

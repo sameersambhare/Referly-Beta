@@ -1,12 +1,9 @@
 "use client"
 
-import { useState, Suspense } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
-import { useRouter, useSearchParams } from "next/navigation"
-import { signIn } from "next-auth/react"
-import { z } from "zod"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
+import { useRouter } from "next/navigation"
+import { signIn, useSession } from "next-auth/react"
 import { Button } from "@/app/components/ui/button"
 import { Input } from "@/app/components/ui/input"
 import { 
@@ -17,52 +14,48 @@ import {
   CardHeader, 
   CardTitle 
 } from "@/app/components/ui/card"
-import {
-  Form,
-  FormControl,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/app/components/ui/form"
+import { Icons } from "@/app/components/icons"
 
-// Define form schema
-const formSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-})
-
-type FormValues = z.infer<typeof formSchema>
-
-function LoginForm() {
+export default function LoginPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard"
+  const { data: session, status } = useSession()
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(false)
   
-  // Initialize form
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-    },
-  })
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (status === "authenticated") {
+      const role = session?.user?.role
+      if (role === "business") {
+        router.push("/dashboard")
+      } else if (role === "referrer") {
+        router.push("/referrer/dashboard")
+      } else if (role === "admin") {
+        router.push("/admin/dashboard")
+      } else {
+        router.push("/dashboard")
+      }
+    }
+  }, [status, session, router])
   
   // Handle form submission
-  const onSubmit = async (data: FormValues) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
     setIsLoading(true)
     setError(null)
     
     try {
+      // Use direct redirect to avoid callback issues
       const result = await signIn("credentials", {
         redirect: false,
-        email: data.email,
-        password: data.password,
+        email,
+        password,
       })
       
       if (result?.error) {
-        setError("Invalid email or password")
+        setError("Invalid email or password. Please try again.")
         setIsLoading(false)
         return
       }
@@ -72,24 +65,33 @@ function LoginForm() {
       if (userResponse.ok) {
         const userData = await userResponse.json();
         
-        // Redirect based on user role
+        // Redirect based on user role using window.location to avoid callback issues
         if (userData.role === "business") {
-          router.push("/dashboard");
+          window.location.href = "/dashboard";
         } else if (userData.role === "referrer") {
-          router.push("/referrer/dashboard");
+          window.location.href = "/referrer/dashboard";
         } else if (userData.role === "admin") {
-          router.push("/admin/dashboard");
+          window.location.href = "/admin/dashboard";
         } else {
-          router.push(callbackUrl);
+          window.location.href = "/dashboard";
         }
       } else {
         // Fallback to default redirect
-        router.push(callbackUrl);
+        window.location.href = "/dashboard";
       }
     } catch (error) {
       setError("An error occurred. Please try again.")
       setIsLoading(false)
     }
+  }
+  
+  // Show loading state while checking session
+  if (status === "loading") {
+    return (
+      <div className="container flex h-screen w-screen flex-col items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    )
   }
   
   return (
@@ -107,37 +109,45 @@ function LoginForm() {
               {error}
             </div>
           )}
-          <Form form={form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormItem>
-                <FormLabel>Email</FormLabel>
-                <FormControl>
-                  <Input
-                    type="email"
-                    placeholder="name@example.com"
-                    {...form.register("email")}
-                    disabled={isLoading}
-                  />
-                </FormControl>
-                <FormMessage>{form.formState.errors.email?.message}</FormMessage>
-              </FormItem>
-              <FormItem>
-                <FormLabel>Password</FormLabel>
-                <FormControl>
-                  <Input
-                    type="password"
-                    placeholder="••••••••"
-                    {...form.register("password")}
-                    disabled={isLoading}
-                  />
-                </FormControl>
-                <FormMessage>{form.formState.errors.password?.message}</FormMessage>
-              </FormItem>
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Signing in..." : "Sign in"}
-              </Button>
-            </form>
-          </Form>
+          <div className="mb-4 rounded-md bg-blue-100 p-3 text-sm text-blue-800">
+            <p><strong>Test Account:</strong></p>
+            <p>Email: business@example.com</p>
+            <p>Password: password123</p>
+            <p className="mt-2 text-xs">Visit <Link href="/api/auth/create-test-business" className="underline">this link</Link> to create the test account if it doesn't exist.</p>
+          </div>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70" htmlFor="email">
+                Email
+              </label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="name@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={isLoading}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70" htmlFor="password">
+                Password
+              </label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={isLoading}
+                required
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Signing in..." : "Sign in"}
+            </Button>
+          </form>
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
           <div className="text-sm text-muted-foreground text-center">
@@ -154,17 +164,5 @@ function LoginForm() {
         </CardFooter>
       </Card>
     </div>
-  )
-}
-
-export default function LoginPage() {
-  return (
-    <Suspense fallback={
-      <div className="container flex h-screen w-screen flex-col items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    }>
-      <LoginForm />
-    </Suspense>
   )
 } 

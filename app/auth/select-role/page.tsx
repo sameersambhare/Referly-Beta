@@ -3,6 +3,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card"
 import { Icons } from "../../components/icons"
+import { User, Building, ShoppingBag } from "lucide-react"
 
 export const metadata: Metadata = {
   title: "Select Role - Referly",
@@ -35,7 +36,7 @@ export default function SelectRolePage() {
               <Link href="/auth/business/login">
                 <CardHeader>
                   <CardTitle className="flex items-center">
-                    <Icons.building className="w-5 h-5 mr-2" />
+                    <Building className="w-5 h-5 mr-2" />
                     Business
                   </CardTitle>
                   <CardDescription>
@@ -57,11 +58,11 @@ export default function SelectRolePage() {
               <Link href="/referrer/login">
                 <CardHeader>
                   <CardTitle className="flex items-center">
-                    <Icons.user className="w-5 h-5 mr-2" />
+                    <User className="w-5 h-5 mr-2" />
                     Referrer
                   </CardTitle>
                   <CardDescription>
-                    Share campaigns and earn rewards as a customer
+                    Share campaigns and earn rewards as a referrer
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -70,6 +71,28 @@ export default function SelectRolePage() {
                     <li>Share with your network</li>
                     <li>Track your referrals</li>
                     <li>Earn rewards</li>
+                  </ul>
+                </CardContent>
+              </Link>
+            </Card>
+
+            <Card className="hover:bg-accent cursor-pointer transition-colors">
+              <Link href="/auth/customer/login">
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <ShoppingBag className="w-5 h-5 mr-2" />
+                    Customer
+                  </CardTitle>
+                  <CardDescription>
+                    Redeem referral links and earn rewards
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ul className="list-disc list-inside text-sm text-muted-foreground">
+                    <li>Paste referral links</li>
+                    <li>View active campaigns</li>
+                    <li>Share campaigns with others</li>
+                    <li>Redeem rewards</li>
                   </ul>
                 </CardContent>
               </Link>

@@ -41,6 +41,8 @@ interface Campaign {
   isActive: boolean
   isSelected?: boolean
   businessId: string
+  businessName?: string
+  companyName?: string
 }
 
 // Extend the Session User type to include image and company
@@ -65,10 +67,13 @@ export default function ReferrerDashboard() {
   useEffect(() => {
     const fetchCampaigns = async () => {
       try {
-        const response = await fetch(`/api/referrer/campaigns?userId=${user?.id}`)
+        setLoading(true)
+        const response = await fetch('/api/referrer/campaigns')
+        
         if (!response.ok) {
           throw new Error("Failed to fetch campaigns")
         }
+        
         const data = await response.json()
         setCampaigns(data)
       } catch (error) {
@@ -83,10 +88,10 @@ export default function ReferrerDashboard() {
       }
     }
 
-    if (user?.id) {
+    if (session?.user) {
       fetchCampaigns()
     }
-  }, [user?.id])
+  }, [session])
 
   const handleCampaignSelect = async (campaignId: string) => {
     try {
@@ -97,7 +102,6 @@ export default function ReferrerDashboard() {
         },
         body: JSON.stringify({
           campaignId,
-          userId: user?.id,
         }),
       })
 
@@ -155,27 +159,55 @@ export default function ReferrerDashboard() {
   }
 
   // Filter campaigns for each tab
-  const activeCampaigns = campaigns.filter(campaign => campaign.isActive && !campaign.isSelected)
+  const availableCampaigns = campaigns.filter(campaign => campaign.isActive && !campaign.isSelected)
   const selectedCampaigns = campaigns.filter(campaign => campaign.isSelected)
 
   return (
     <>
       <div className="container py-10">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">Available Campaigns</h1>
-          <p className="text-muted-foreground mt-2">
-            Select campaigns from {user?.company || "your company"} to start referring and earning rewards
-          </p>
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-bold">Available Campaigns</h1>
+            <p className="text-muted-foreground mt-2">
+              Select campaigns from {user?.company || "your company"} to start referring and earning rewards
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                  <Avatar>
+                    <AvatarImage src={user?.image || ""} alt={user?.name || "User"} />
+                    <AvatarFallback>{getUserInitials()}</AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/referrer/profile">Profile</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/referrer/settings">Settings</Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout}>
+                  Log out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
-        <Tabs defaultValue="active" className="space-y-4">
+        <Tabs defaultValue="available" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="active">Available Campaigns</TabsTrigger>
+            <TabsTrigger value="available">Available Campaigns</TabsTrigger>
             <TabsTrigger value="selected">My Campaigns</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="active">
-            {activeCampaigns.length === 0 ? (
+          <TabsContent value="available">
+            {availableCampaigns.length === 0 ? (
               <div className="text-center py-10">
                 <AlertCircle className="h-10 w-10 mx-auto text-muted-foreground mb-4" />
                 <h3 className="text-lg font-medium">No campaigns available</h3>
@@ -185,13 +217,16 @@ export default function ReferrerDashboard() {
               </div>
             ) : (
               <div className="grid gap-4">
-                {activeCampaigns.map((campaign) => (
+                {availableCampaigns.map((campaign) => (
                   <Card key={campaign._id}>
                     <CardHeader>
                       <div className="flex items-start justify-between">
                         <div>
                           <CardTitle>{campaign.name}</CardTitle>
                           <CardDescription>{campaign.description}</CardDescription>
+                          <Badge variant="outline" className="mt-2">
+                            {campaign.businessName || campaign.companyName || "Unknown Business"}
+                          </Badge>
                         </div>
                         <Badge variant="outline">Available</Badge>
                       </div>
@@ -219,7 +254,7 @@ export default function ReferrerDashboard() {
                         <div>
                           <p className="text-muted-foreground">Your Reward</p>
                           <p>
-                            {campaign.referrerRewardType}: ${campaign.referrerRewardAmount}
+                            {campaign.referrerRewardType || "Cash"}: ${campaign.referrerRewardAmount || campaign.rewardAmount * 0.1}
                           </p>
                         </div>
                       </div>
@@ -252,7 +287,7 @@ export default function ReferrerDashboard() {
                 <AlertCircle className="h-10 w-10 mx-auto text-muted-foreground mb-4" />
                 <h3 className="text-lg font-medium">No campaigns selected</h3>
                 <p className="text-muted-foreground mt-2">
-                  You haven't selected any campaigns yet. Select campaigns from the "Available Campaigns" tab to start sharing.
+                  You haven't selected any campaigns yet. Select campaigns from the "Available Campaigns" tab to start referring.
                 </p>
               </div>
             ) : (
@@ -264,8 +299,11 @@ export default function ReferrerDashboard() {
                         <div>
                           <CardTitle>{campaign.name}</CardTitle>
                           <CardDescription>{campaign.description}</CardDescription>
+                          <Badge variant="outline" className="mt-2">
+                            {campaign.businessName || campaign.companyName || "Unknown Business"}
+                          </Badge>
                         </div>
-                        <Badge>Active</Badge>
+                        <Badge>Selected</Badge>
                       </div>
                     </CardHeader>
                     <CardContent>
@@ -291,14 +329,22 @@ export default function ReferrerDashboard() {
                         <div>
                           <p className="text-muted-foreground">Your Reward</p>
                           <p>
-                            {campaign.referrerRewardType}: ${campaign.referrerRewardAmount}
+                            {campaign.referrerRewardType || "Cash"}: ${campaign.referrerRewardAmount || campaign.rewardAmount * 0.1}
                           </p>
                         </div>
                       </div>
                       <div className="flex justify-end space-x-2">
-                        <Link href={`/referrer/campaigns/${campaign._id}/share`}>
-                          <Button>Share Campaign</Button>
-                        </Link>
+                        <Button
+                          variant="outline"
+                          onClick={() => window.open(`/campaigns/${campaign._id}`, "_blank")}
+                        >
+                          View Details
+                        </Button>
+                        <Button
+                          onClick={() => window.open(`/referrer/share/${campaign._id}`, "_blank")}
+                        >
+                          Share Campaign
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>

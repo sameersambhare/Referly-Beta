@@ -1,12 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { signIn } from "next-auth/react"
-import { z } from "zod"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
+import { signIn, useSession } from "next-auth/react"
 import { Button } from "@/app/components/ui/button"
 import { Input } from "@/app/components/ui/input"
 import { 
@@ -17,51 +14,47 @@ import {
   CardHeader, 
   CardTitle 
 } from "@/app/components/ui/card"
-import {
-  Form,
-  FormControl,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/app/components/ui/form"
 import { Icons } from "@/app/components/icons"
-
-// Define form schema
-const formSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-  businessName: z.string().min(2, "Business name must be at least 2 characters"),
-  industry: z.string().optional(),
-  phone: z.string().optional(),
-  referralCode: z.string().optional(),
-})
-
-type FormValues = z.infer<typeof formSchema>
 
 export default function BusinessRegisterPage() {
   const router = useRouter()
+  const { data: session, status } = useSession()
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    password: "",
+    businessName: "",
+    industry: "",
+    phone: "",
+  })
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(false)
   
-  // Initialize form
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: "",
-      email: "",
-      password: "",
-      businessName: "",
-      industry: "",
-      phone: "",
-      referralCode: "",
-    },
-  })
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.push("/dashboard")
+    }
+  }, [status, router])
+  
+  // Handle input change
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setFormData(prev => ({ ...prev, [name]: value }))
+  }
   
   // Handle form submission
-  const onSubmit = async (data: FormValues) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
     setIsLoading(true)
     setError(null)
+    
+    // Validate required fields
+    if (!formData.name || !formData.email || !formData.password || !formData.businessName) {
+      setError("Please fill in all required fields")
+      setIsLoading(false)
+      return
+    }
     
     try {
       const response = await fetch("/api/auth/register", {
@@ -70,7 +63,7 @@ export default function BusinessRegisterPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          ...data,
+          ...formData,
           role: "business",
         }),
       })
@@ -78,7 +71,7 @@ export default function BusinessRegisterPage() {
       const result = await response.json()
       
       if (!response.ok) {
-        setError(result.error || "Registration failed. Please try again.")
+        setError(result.message || "Registration failed. Please try again.")
         setIsLoading(false)
         return
       }
@@ -86,8 +79,8 @@ export default function BusinessRegisterPage() {
       // Sign in the user after successful registration
       const signInResult = await signIn("credentials", {
         redirect: false,
-        email: data.email,
-        password: data.password,
+        email: formData.email,
+        password: formData.password,
       })
       
       if (signInResult?.error) {
@@ -96,12 +89,21 @@ export default function BusinessRegisterPage() {
         return
       }
       
-      // Redirect to business dashboard
-      router.push("/dashboard")
+      // Use direct redirect to avoid callback issues
+      window.location.href = "/dashboard"
     } catch (error) {
       setError("An error occurred. Please try again.")
       setIsLoading(false)
     }
+  }
+  
+  // Show loading state while checking session
+  if (status === "loading") {
+    return (
+      <div className="container flex h-screen w-screen flex-col items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    )
   }
   
   return (
@@ -122,92 +124,96 @@ export default function BusinessRegisterPage() {
               {error}
             </div>
           )}
-          <Form form={form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormItem>
-                <FormLabel>Full Name</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="John Doe"
-                    {...form.register("name")}
-                    disabled={isLoading}
-                  />
-                </FormControl>
-                <FormMessage>{form.formState.errors.name?.message}</FormMessage>
-              </FormItem>
-              <FormItem>
-                <FormLabel>Email</FormLabel>
-                <FormControl>
-                  <Input
-                    type="email"
-                    placeholder="name@example.com"
-                    {...form.register("email")}
-                    disabled={isLoading}
-                  />
-                </FormControl>
-                <FormMessage>{form.formState.errors.email?.message}</FormMessage>
-              </FormItem>
-              <FormItem>
-                <FormLabel>Password</FormLabel>
-                <FormControl>
-                  <Input
-                    type="password"
-                    placeholder="••••••••"
-                    {...form.register("password")}
-                    disabled={isLoading}
-                  />
-                </FormControl>
-                <FormMessage>{form.formState.errors.password?.message}</FormMessage>
-              </FormItem>
-              <FormItem>
-                <FormLabel>Business Name</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="Acme Inc."
-                    {...form.register("businessName")}
-                    disabled={isLoading}
-                  />
-                </FormControl>
-                <FormMessage>{form.formState.errors.businessName?.message}</FormMessage>
-              </FormItem>
-              <FormItem>
-                <FormLabel>Industry</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="Technology, Retail, etc."
-                    {...form.register("industry")}
-                    disabled={isLoading}
-                  />
-                </FormControl>
-                <FormMessage>{form.formState.errors.industry?.message}</FormMessage>
-              </FormItem>
-              <FormItem>
-                <FormLabel>Phone (optional)</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="+1 (555) 123-4567"
-                    {...form.register("phone")}
-                    disabled={isLoading}
-                  />
-                </FormControl>
-                <FormMessage>{form.formState.errors.phone?.message}</FormMessage>
-              </FormItem>
-              <FormItem>
-                <FormLabel>Referral Code (optional)</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="Enter referral code if you have one"
-                    {...form.register("referralCode")}
-                    disabled={isLoading}
-                  />
-                </FormControl>
-                <FormMessage>{form.formState.errors.referralCode?.message}</FormMessage>
-              </FormItem>
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Creating account..." : "Create account"}
-              </Button>
-            </form>
-          </Form>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium" htmlFor="name">
+                Full Name <span className="text-destructive">*</span>
+              </label>
+              <Input
+                id="name"
+                name="name"
+                placeholder="John Doe"
+                value={formData.name}
+                onChange={handleChange}
+                disabled={isLoading}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium" htmlFor="email">
+                Email <span className="text-destructive">*</span>
+              </label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                placeholder="name@example.com"
+                value={formData.email}
+                onChange={handleChange}
+                disabled={isLoading}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium" htmlFor="password">
+                Password <span className="text-destructive">*</span>
+              </label>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                placeholder="••••••••"
+                value={formData.password}
+                onChange={handleChange}
+                disabled={isLoading}
+                required
+              />
+              <p className="text-xs text-muted-foreground">Password must be at least 8 characters</p>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium" htmlFor="businessName">
+                Business Name <span className="text-destructive">*</span>
+              </label>
+              <Input
+                id="businessName"
+                name="businessName"
+                placeholder="Acme Inc."
+                value={formData.businessName}
+                onChange={handleChange}
+                disabled={isLoading}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium" htmlFor="industry">
+                Industry
+              </label>
+              <Input
+                id="industry"
+                name="industry"
+                placeholder="Technology, Retail, etc."
+                value={formData.industry}
+                onChange={handleChange}
+                disabled={isLoading}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium" htmlFor="phone">
+                Phone
+              </label>
+              <Input
+                id="phone"
+                name="phone"
+                placeholder="+1 (555) 123-4567"
+                value={formData.phone}
+                onChange={handleChange}
+                disabled={isLoading}
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Creating account..." : "Create account"}
+            </Button>
+          </form>
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
           <div className="text-sm text-muted-foreground text-center">

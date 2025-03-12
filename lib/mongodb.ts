@@ -51,16 +51,27 @@ export async function connectToMongoose() {
     const opts = {
       bufferCommands: false,
       dbName: MONGODB_DB,
+      serverSelectionTimeoutMS: 30000,
+      socketTimeoutMS: 45000,
+      connectTimeoutMS: 30000,
+      maxPoolSize: 10,
+      family: 4,
     };
 
+    console.log('Connecting to MongoDB with Mongoose...');
     mongooseCache.promise = mongoose.connect(MONGODB_URI!, opts).then((mongoose) => {
+      console.log('MongoDB connected successfully with Mongoose');
       return mongoose;
+    }).catch(err => {
+      console.error('MongoDB connection error with Mongoose:', err);
+      throw err;
     });
   }
 
   try {
     mongooseCache.conn = await mongooseCache.promise;
   } catch (e) {
+    console.error('Failed to connect to MongoDB with Mongoose:', e);
     mongooseCache.promise = null;
     throw e;
   }
@@ -79,21 +90,47 @@ export async function connectToDatabase() {
 
   if (!mongodbCache.promise) {
     const opts = {
-      maxPoolSize: 50,
-      wtimeoutMS: 2500,
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 30000,
+      socketTimeoutMS: 45000,
+      connectTimeoutMS: 30000,
+      family: 4,
     };
 
-    mongodbCache.promise = MongoClient.connect(MONGODB_URI!, opts);
+    console.log('Connecting to MongoDB with native driver...');
+    mongodbCache.promise = MongoClient.connect(MONGODB_URI!, opts)
+      .then(client => {
+        console.log('MongoDB connected successfully with native driver');
+        return client;
+      })
+      .catch(err => {
+        console.error('MongoDB connection error with native driver:', err);
+        throw err;
+      });
   }
 
   try {
     mongodbCache.client = await mongodbCache.promise;
   } catch (e) {
+    console.error('Failed to connect to MongoDB with native driver:', e);
     mongodbCache.promise = null;
     throw e;
   }
 
   return mongodbCache.client.db(MONGODB_DB);
 }
+
+// Add event listeners for Mongoose connection
+mongoose.connection.on('connected', () => {
+  console.log('Mongoose connected to MongoDB');
+});
+
+mongoose.connection.on('error', (err) => {
+  console.error('Mongoose connection error:', err);
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.log('Mongoose disconnected from MongoDB');
+});
 
 export default connectToDatabase; 
