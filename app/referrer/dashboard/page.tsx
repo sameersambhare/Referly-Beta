@@ -282,6 +282,26 @@ export default function ReferrerDashboard() {
           </TabsContent>
 
           <TabsContent value="selected">
+            <div className="mb-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Generate Referral Links</CardTitle>
+                  <CardDescription>
+                    Create unique referral links for your selected campaigns to share with potential customers
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="mb-4">
+                    Generate personalized referral links that you can share via email, social media, or messaging apps.
+                    You'll earn rewards for each successful referral.
+                  </p>
+                  <Button onClick={() => window.open('/referrals/generate', '_blank')}>
+                    Generate Referral Link
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+            
             {selectedCampaigns.length === 0 ? (
               <div className="text-center py-10">
                 <AlertCircle className="h-10 w-10 mx-auto text-muted-foreground mb-4" />
@@ -339,6 +359,12 @@ export default function ReferrerDashboard() {
                           onClick={() => window.open(`/campaigns/${campaign._id}`, "_blank")}
                         >
                           View Details
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => window.open(`/referrals/generate?campaignId=${campaign._id}`, "_blank")}
+                        >
+                          Generate Link
                         </Button>
                         <Button
                           onClick={() => window.open(`/referrer/share/${campaign._id}`, "_blank")}

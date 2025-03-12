@@ -1,8 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    serverActions: true,
-    serverActions:['mongoose'],
+    serverActions: {
+      allowedOrigins: ['localhost:3000'],
+    },
     optimizeCss: false,
     optimizePackageImports: [],
   },

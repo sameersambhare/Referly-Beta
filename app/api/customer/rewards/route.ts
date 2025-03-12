@@ -1,76 +1,101 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/options"
-import { connectToDatabase } from "@/lib/mongodb"
-import Reward from "@/models/Reward"
-import User from "@/models/User"
-import Campaign from "@/models/Campaign"
+import { connectToDatabase } from "@/lib/db"
+import { ObjectId } from "mongodb"
 
-export async function GET(req: Request) {
+export async function GET(request: Request) {
   try {
     // Check if user is authenticated
     const session = await getServerSession(authOptions)
+    
     if (!session || !session.user) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       )
     }
-
-    // Check if user is a customer
-    if (session.user.role !== "customer") {
+    
+    // Get user ID from session
+    const userId = session.user.id
+    
+    if (!userId) {
       return NextResponse.json(
-        { error: "Only customers can view their rewards" },
-        { status: 403 }
+        { error: "User ID not found in session" },
+        { status: 400 }
       )
     }
-
-    // Connect to the database
-    await connectToDatabase()
-
-    // Find all rewards for the customer
-    const rewards = await Reward.find({ userId: session.user.id })
-      .sort({ dateEarned: -1 })
-      .lean()
-
-    // If no rewards found, return empty array
-    if (!rewards || rewards.length === 0) {
-      return NextResponse.json([])
+    
+    // Get query parameters
+    const url = new URL(request.url)
+    const status = url.searchParams.get("status") // pending, claimed, all
+    
+    console.log(`Fetching rewards for user ${userId} with status: ${status || 'all'}`)
+    
+    // Connect to database
+    const db = await connectToDatabase()
+    
+    // Build query
+    const query: any = {
+      userId: new ObjectId(userId),
+      claimable: true
     }
-
-    // Get all business IDs and campaign IDs from rewards
-    const businessIds = [...new Set(rewards.map(reward => reward.businessId))]
-    const campaignIds = [...new Set(rewards.map(reward => reward.campaignId))]
-
-    // Fetch business and campaign details
-    const businesses = await User.find({ _id: { $in: businessIds } })
-      .select("name businessName companyName")
-      .lean()
-
-    const campaigns = await Campaign.find({ _id: { $in: campaignIds } })
-      .select("name companyName")
-      .lean()
-
-    // Create a map of business IDs to business names
-    const businessMap = businesses.reduce((map, business) => {
-      map[business._id.toString()] = business.businessName || business.companyName || business.name || "Unknown Business"
-      return map
-    }, {} as Record<string, string>)
-
-    // Create a map of campaign IDs to campaign names
-    const campaignMap = campaigns.reduce((map, campaign) => {
-      map[campaign._id.toString()] = campaign.name || "Unknown Campaign"
-      return map
-    }, {} as Record<string, string>)
-
-    // Enrich rewards with business and campaign names
-    const enrichedRewards = rewards.map(reward => ({
-      ...reward,
-      businessName: businessMap[reward.businessId.toString()],
-      campaignName: campaignMap[reward.campaignId.toString()]
-    }))
-
-    return NextResponse.json(enrichedRewards)
+    
+    // Add status filter if provided
+    if (status && status !== "all") {
+      query.status = status
+    }
+    
+    // Find rewards
+    const rewards = await db.collection("rewards").find(query)
+      .sort({ dateEarned: -1 })
+      .toArray()
+    
+    console.log(`Found ${rewards.length} rewards`)
+    
+    // Get campaign details for each reward
+    const campaignIds = [...new Set(rewards.map(reward => 
+      reward.campaignId instanceof ObjectId 
+        ? reward.campaignId 
+        : new ObjectId(reward.campaignId)
+    ))]
+    
+    const campaigns = await db.collection("campaigns").find({
+      _id: { $in: campaignIds }
+    }).toArray()
+    
+    // Get business details for each campaign
+    const businessIds = [...new Set(campaigns.map(campaign => 
+      campaign.businessId instanceof ObjectId 
+        ? campaign.businessId 
+        : new ObjectId(campaign.businessId)
+    ))]
+    
+    const businesses = await db.collection("users").find({
+      _id: { $in: businessIds },
+      role: "business"
+    }).toArray()
+    
+    // Map additional details to rewards
+    const rewardsWithDetails = rewards.map(reward => {
+      const campaign = campaigns.find(c => c._id.toString() === reward.campaignId.toString())
+      const business = campaign 
+        ? businesses.find(b => b._id.toString() === campaign.businessId.toString())
+        : null
+      
+      return {
+        ...reward,
+        _id: reward._id.toString(),
+        campaignName: campaign?.name || "Unknown Campaign",
+        businessName: business?.businessName || business?.name || "Unknown Business",
+        campaignId: reward.campaignId.toString(),
+        userId: reward.userId.toString(),
+        businessId: reward.businessId.toString()
+      }
+    })
+    
+    return NextResponse.json(rewardsWithDetails)
+    
   } catch (error) {
     console.error("Error fetching rewards:", error)
     return NextResponse.json(

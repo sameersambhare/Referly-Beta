@@ -1,98 +1,132 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/options"
-import { connectToDatabase } from "@/lib/mongodb"
-import Campaign from "@/models/Campaign"
-import User from "@/models/User"
+import { connectToDatabase } from "@/lib/db"
+import { ObjectId } from "mongodb"
 
-export async function POST(req: Request) {
+export async function POST(request: Request) {
   try {
     // Check if user is authenticated
     const session = await getServerSession(authOptions)
-    if (!session || !session.user) {
+    
+    if (!session || !session.user || session.user.role !== "customer") {
       return NextResponse.json(
-        { error: "Unauthorized" },
+        { error: "Unauthorized. You must be signed in as a customer." },
         { status: 401 }
       )
     }
-
-    // Check if user is a customer
-    if (session.user.role !== "customer") {
+    
+    // Get user ID from session
+    const userId = session.user.id
+    
+    if (!userId) {
       return NextResponse.json(
-        { error: "Only customers can process referral links" },
-        { status: 403 }
-      )
-    }
-
-    // Get the referral link from the request body
-    const { referralLink } = await req.json()
-    if (!referralLink) {
-      return NextResponse.json(
-        { error: "Referral link is required" },
+        { error: "User ID not found in session" },
         { status: 400 }
       )
     }
-
-    // Extract the campaign ID from the referral link
-    // Format: https://referly.com/r/{campaignId}?ref={referrerId}
-    const url = new URL(referralLink)
-    const pathParts = url.pathname.split('/')
-    const campaignId = pathParts[pathParts.length - 1]
-    const referrerId = url.searchParams.get('ref')
-
-    if (!campaignId) {
+    
+    // Parse request body
+    const body = await request.json()
+    let { referralLink, code } = body
+    
+    // Extract code from referral link if provided
+    if (referralLink && !code) {
+      const url = new URL(referralLink)
+      const pathParts = url.pathname.split('/')
+      code = pathParts[pathParts.length - 1]
+    }
+    
+    if (!code) {
       return NextResponse.json(
-        { error: "Invalid referral link format" },
+        { error: "Referral code is required" },
         { status: 400 }
       )
     }
-
-    // Connect to the database
-    await connectToDatabase()
-
-    // Find the campaign
-    const campaign = await Campaign.findById(campaignId)
+    
+    console.log(`Processing referral code: ${code} for customer: ${userId}`)
+    
+    // Connect to database
+    const db = await connectToDatabase()
+    
+    // Find the referral link
+    const referralLinkRecord = await db.collection("referralLinks").findOne({
+      code: code,
+      active: true
+    })
+    
+    if (!referralLinkRecord) {
+      return NextResponse.json(
+        { error: "Invalid or expired referral link" },
+        { status: 404 }
+      )
+    }
+    
+    console.log(`Found referral link: ${referralLinkRecord._id}`)
+    
+    // Increment the click count
+    await db.collection("referralLinks").updateOne(
+      { _id: referralLinkRecord._id },
+      { $inc: { clicks: 1 } }
+    )
+    
+    // Get campaign details
+    const campaign = await db.collection("campaigns").findOne({
+      _id: referralLinkRecord.campaignId
+    })
+    
     if (!campaign) {
       return NextResponse.json(
         { error: "Campaign not found" },
         { status: 404 }
       )
     }
-
-    // Check if the campaign is active
-    if (!campaign.isActive) {
-      return NextResponse.json(
-        { error: "This campaign is no longer active" },
-        { status: 400 }
-      )
+    
+    console.log(`Found campaign: ${campaign.name}`)
+    
+    // Get business details
+    const business = await db.collection("users").findOne({
+      _id: campaign.businessId,
+      role: "business"
+    })
+    
+    // Check if this user already has a conversion for this referral
+    const existingConversion = await db.collection("conversions").findOne({
+      referralLinkId: referralLinkRecord._id,
+      customerId: new ObjectId(userId)
+    })
+    
+    // If no existing conversion, create a pending one
+    if (!existingConversion) {
+      console.log(`Creating new conversion for customer ${userId}`)
+      await db.collection("conversions").insertOne({
+        referralLinkId: referralLinkRecord._id,
+        referrerId: referralLinkRecord.referrerId,
+        campaignId: referralLinkRecord.campaignId,
+        customerId: new ObjectId(userId),
+        status: "pending", // pending, completed, rejected
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+    } else {
+      console.log(`Customer ${userId} already has a conversion for this referral`)
     }
-
-    // Find the referrer if referrerId is provided
-    let referrer = null
-    if (referrerId) {
-      referrer = await User.findById(referrerId)
-      if (!referrer) {
-        return NextResponse.json(
-          { error: "Referrer not found" },
-          { status: 404 }
-        )
-      }
-    }
-
-    // Return the campaign details
+    
+    // Return the campaign data
     return NextResponse.json({
-      _id: campaign._id,
+      _id: campaign._id.toString(),
       name: campaign.name,
       description: campaign.description,
-      businessName: campaign.companyName || "Unknown Business",
+      businessName: business?.businessName || business?.name || "Unknown Business",
       companyName: campaign.companyName,
-      rewardType: campaign.customerRewardType,
-      rewardAmount: campaign.customerRewardAmount,
+      rewardType: campaign.rewardType,
+      rewardAmount: campaign.rewardAmount,
       startDate: campaign.startDate,
       endDate: campaign.endDate,
       isActive: campaign.isActive,
-      referrerId: referrerId
+      referralCode: code
     })
+    
   } catch (error) {
     console.error("Error processing referral link:", error)
     return NextResponse.json(
